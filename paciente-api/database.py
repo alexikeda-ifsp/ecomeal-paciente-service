@@ -1,47 +1,60 @@
+import datetime
+import decimal
+import uuid
+
 from psycopg2.extras import RealDictCursor
 
 
-def select_operation(connection, table, id_paciente=None):
-    """
-    Executa SELECT no PostgreSQL e retorna
-    dicionários compatíveis com JSONResponse.
-    """
+def convert_value(value):
 
-    if table is None:
-        raise Exception("Tabela não encontrada.")
+    if isinstance(value, (datetime.date, datetime.datetime)):
+        return value.isoformat()
+
+    if isinstance(value, decimal.Decimal):
+        return float(value)
+
+    if isinstance(value, uuid.UUID):
+        return str(value)
+
+    return value
 
 
-    cursor = connection.cursor(
-        cursor_factory=RealDictCursor
-    )
 
+def select_operation(connection, table, id=None):
+
+    cursor = connection.cursor(cursor_factory=RealDictCursor)
 
     try:
 
-        if id_paciente is not None:
+        if id:
 
             cursor.execute(
-                f"""
-                SELECT *
-                FROM {table}
-                WHERE id = %s
-                """,
-                (id_paciente,)
+                f"SELECT * FROM {table} WHERE id = %s",
+                (id,)
             )
-
-            result = cursor.fetchone()
-
 
         else:
 
             cursor.execute(
-                f"""
-                SELECT *
-                FROM {table}
-                """
+                f"SELECT * FROM {table}"
             )
 
-            result = cursor.fetchall()
+
+        rows = cursor.fetchall()
+
+
+        result = []
+
+        for row in rows:
+
+            item = {}
+
+            for key, value in row.items():
+
+                item[key] = convert_value(value)
+
+
+            result.append(item)
 
 
         return result
@@ -50,4 +63,3 @@ def select_operation(connection, table, id_paciente=None):
     finally:
 
         cursor.close()
-        connection.close()
