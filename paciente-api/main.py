@@ -1,48 +1,81 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+
 from database import select_operation
 from connection_api import create_connection
-from fastapi import HTTPException
-from supabase.client import AuthApiError
+
 
 app = FastAPI()
+
 
 @app.get("/pacientes/")
 async def busca_pacientes():
     """
-    Retorna uma Lista de Objetos Paciente, que são todos os pacientes
-    registrados no Banco de Dados. Se não houver, é retornado uma Lista vazia.
+    Retorna uma lista com todos os pacientes cadastrados.
     """
-    client = create_connection()
-    if client is None:
+
+    connection = create_connection()
+
+    if connection is None:
         raise HTTPException(
             status_code=500,
-            detail="Erro na Conexão com o Banco de Dados."
+            detail="Erro na conexão com banco de dados."
         )
-    pacientes = select_operation(client,"paciente")
-    return JSONResponse(content=pacientes, status_code=200)
+
+
+    pacientes = select_operation(
+        connection,
+        "paciente"
+    )
+
+
+    return JSONResponse(
+        content=pacientes,
+        status_code=200
+    )
 
 
 
 @app.get("/pacientes/{id}")
-async def busca_paciente(id:str):
+async def busca_paciente(id: str):
     """
-    Busca o paciente pelo ID, retornando um Objeto Paciente.
-    Se não for encontrado, é retornando 404.
+    Retorna um paciente pelo UUID.
     """
-    client = create_connection()
-    if client is None:
+
+    connection = create_connection()
+
+    if connection is None:
         raise HTTPException(
             status_code=500,
-            detail="Erro na Conexão com o Banco de Dados."
+            detail="Erro na conexão com banco de dados."
         )
+
+
     try:
-        paciente = select_operation(client, "paciente",id)
-    except Exception as e:
-        if e.code == "22P02":
-            raise HTTPException(status_code=400, detail="ID deve estar no formato UUID. ID fornecido é Inválido")
+
+        paciente = select_operation(
+            connection,
+            "paciente",
+            id
+        )
+
+    except Exception:
+
+        raise HTTPException(
+            status_code=400,
+            detail="ID inválido."
+        )
+
+
     if not paciente:
-        raise HTTPException(status_code=404,detail="Paciente não encontrado.")
-    return JSONResponse(content=paciente, status_code=200)
+
+        raise HTTPException(
+            status_code=404,
+            detail="Paciente não encontrado."
+        )
 
 
+    return JSONResponse(
+        content=paciente,
+        status_code=200
+    )
